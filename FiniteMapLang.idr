@@ -47,23 +47,31 @@ data Expr : (store : Store) -> Type where
     MkAdd : (s : Store) -> Expr s -> Expr s -> Expr s 
     MkMul : (s : Store) -> Expr s -> Expr s -> Expr s 
 
+evalE : Expr s -> Nat
+evalE (MkVar v s p) = lookup v s p
+evalE (MkNum n s) = n 
+evalE (MkAdd s e1 e2) = evalE e1 + evalE e2
+evalE (MkMul s e1 e2) = evalE e1 + evalE e2
+
+
 data Stmt : (s : Store) -> (s' : Store) -> Type where 
     MkSeq : (s1 : Stmt s s') -> (s2 : Stmt s' s'')
           -> Stmt s s'' 
-    MkExpr : (s : Store) -> (e : Expr s) -> Stmt s s
     MkDec  : (s : Store) -> (v : Var) -> (prf : Not (ElemStore v s))
-          -> (s' : Store) -> (sP : ExtendStore s s') ->  Stmt s s'
+          -> Stmt s (insert v Z s prf)
     MkAss  : (s : Store) -> (v : Var) -> (e : Expr s) 
           -> (prf : ElemStore v s)
-          -> (s' : Store)
-          -> (sP : UpdateStore s s')
-          -> Stmt s s'
+         -- -> (s' : Store)
+         -- -> (sP : UpdateStore s s')
+          -> Stmt s (update v (evalE e) s prf)
 
 
+data Result : Store -> Type where 
+    MkResult : (s : Store) -> Result s
 
-
-eval : Expr s -> Nat
-eval (MkVar v s p) = lookup v s p
-eval (MkNum n s) = n 
-eval (MkAdd s e1 e2) = eval e1 + eval e2
-eval (MkMul s e1 e2) = eval e1 + eval e2
+evalS : (s: Store) -> Stmt s s' -> Result s'
+evalS s (MkSeq s1 s2) = 
+    case evalS s s1 of 
+        MkResult s1' => evalS s1' s2
+evalS s (MkDec s v prf) = MkResult (insert v Z s prf)
+evalS s (MkAss s v e prf) = MkResult (update v (evalE e) s prf)
