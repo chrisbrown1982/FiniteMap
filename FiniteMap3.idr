@@ -82,14 +82,20 @@ data Stmt : (s : Support) -> (s' : Support) -> Type where
 weakenSt : (v : Var) -> (vs : List Var) -> (prf : So (sorted vs))
         -> (s : Store (MkSup vs prf)) -> Store (MkSup (v :: vs) (lem3 v vs (lem2 v vs prf)))
 weakenSt v vs prf SNil = SNil
-weakenSt v vs prf0 (SCons k v2 prf xs) = ?h -- let indH = (weakenSt v xs) in  -- SCons k v2 (There prf) indH
+weakenSt v vs prf0 (SCons k v2 (MkES prf) xs) = let indH = weakenSt v vs prf0 xs in SCons k v2 (MkES (There prf)) indH
 
-{-
+
+weakenSt2 : (v : Var) -> (vs : List Var) -> (prf : So (sorted vs))
+        -> (s : Store (MkSup vs prf)) -> Store (MkSup (sort (v :: vs)) (lem2 v vs prf))
+weakenSt2 v vs prf SNil = SNil
+weakenSt2 v vs prf0 (SCons k v2 (MkES prf) xs) = let indH = weakenSt2 v vs prf0 xs in indH
+
 evalS : (s: Support) -> Stmt s s' -> Store s -> Store s'
-evalS s (MkSeq {s1} p1 p2) st = case evalS s p1 st of
+evalS s (MkSeq {s1} p1 p2) st =  case evalS s p1 st of
     x => evalS s1 p2 x
-evalS s (MkDec s v) st = weakenSt v st
+evalS (MkSup xs prf) (MkDec (MkSup xs prf) v) st =  weakenSt2 v xs prf st
 evalS s (MkAss s v e prf) st = insert v (evalE e) st prf 
+
 
 -------------
 
@@ -97,16 +103,12 @@ data IsDec : (Stmt s s') -> (v1, v2 : Var) -> Type where
     MkIsDec : IsDec (MkSeq (MkDec s1 v1)
                            (MkDec (addVars v1 s1) v2)) v1 v2
 
+            
 -- p1 = d1;d2
 -- p2 = d2;d1
 
+
 comm : (v1, v2 : Var) -> (s : Support) -> (st : Store s) 
     -> (p1 : Stmt s s1) -> (p2 : Stmt s s2) -> IsDec p1 v1 v2 -> IsDec p2 v2 v1 -> evalS s p1 st = evalS s p2 st
-comm v1 v2 s1 st (MkSeq (MkDec s1 v1) (MkDec (addVars v1 s1) v2)) 
-                 (MkSeq (MkDec s1 v2) (MkDec (addVars v2 s1) v1)) MkIsDec MkIsDec =
-                    case st of 
-                        SNil => ?h1
-                        SCons k v3 prf xs => ?h2
-
--- sort list for normal form
--}
+comm v1 v2 (MkSup xs prf) st (MkSeq (MkDec (MkSup xs prf) v1) (MkDec (addVars v1 (MkSup xs prf)) ?v')) 
+                             (MkSeq (MkDec (MkSup xs prf) v2) (MkDec (addVars v2 (MkSup xs prf)) ?v'')) MkIsDec MkIsDec = ?h1
